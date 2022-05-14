@@ -1,0 +1,195 @@
+package service
+
+import (
+	"bufio"
+	"fmt"
+	"github.com/qinjintian/superchutou/app/core"
+	"github.com/qinjintian/superchutou/pkg/utils"
+	"github.com/tidwall/gjson"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
+
+type Service struct {
+	cfg         *Config
+	xdSvc       *core.XTDXService
+	stuId       string                 // 学生ID
+	stuDetailId string                 // 学生详情ID
+	curriculums map[uint64]*curriculum // 课程信息
+	wg          sync.WaitGroup
+}
+
+// curriculum 课程参数信息
+type curriculum struct {
+	courseId     uint64
+	curriculumId uint64
+	cuName       string
+}
+
+func NewService(cfg *Config, xdSvc *core.XTDXService) (*Service, error) {
+	return &Service{
+		cfg:         cfg,
+		xdSvc:       xdSvc,
+		curriculums: make(map[uint64]*curriculum, 0),
+	}, nil
+}
+
+func (s *Service) Run() {
+	result := s.Login() // 登录
+
+	log.Println(fmt.Sprintf("登录成功，^_^欢迎%s，开始获取专业课程列表~~~~", result.Get("Data.Name")))
+
+	time.Sleep(2 * time.Second)
+
+	// 获取学生专业课程列表
+	result = s.GetCurriculums(result.Get("Data.StuDetail_ID").String(), result.Get("Data.StuID").String())
+
+	var (
+		arrs  = result.Get("Data.list").Array()
+		count = result.Get("TotalCount").Uint()
+	)
+
+	for key, arr := range arrs {
+		var (
+			courseReadChapters = arr.Get("CourseReadChapters").Uint()
+			courseChapters     = arr.Get("CourseChapters").Uint()
+		)
+
+		s.curriculums[arr.Get("Curriculum_ID").Uint()] = &curriculum{
+			courseId:     arr.Get("Course_ID").Uint(),
+			curriculumId: arr.Get("Curriculum_ID").Uint(),
+			cuName:       arr.Get("CuName").String(),
+		}
+
+		// 跳过还未可以看的课程
+		if courseChapters == 0 {
+			log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 进度： 已观看数: 0 总数: 0 进度: 0%% | 状态： 未开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String()))
+			continue
+		}
+
+		rate := utils.Decimal(float64(courseReadChapters) / float64(courseChapters) * 100)
+
+		log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 进度： 已观看数: %d 总数: %d 进度: %v%% | 状态： 已开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String(), courseReadChapters, courseChapters, rate))
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+
+	log.Println("请输入要观看的课程ID，多个ID请用隔空隔开，格式：1100 1122 1133")
+
+ReEnter:
+	curriculumIds := make([]string, 0)
+
+	for {
+		scanner.Scan()
+		curriculumIdStr := scanner.Text()
+
+		if curriculumIdStr == "" {
+			log.Println("（。・＿・。）课程ID不能为空，请重新输入~")
+			continue
+		}
+
+		curriculumIds = strings.Split(curriculumIdStr, " ")
+		for key, curriculumId := range curriculumIds {
+			id, err := strconv.ParseUint(curriculumId, 10, 64)
+			if err != nil {
+				log.Println(fmt.Sprintf("（。・＿・。）您输入的第%d个课程ID不正确，请重新输入~", key+1))
+				goto ReEnter
+			}
+
+			if _, ok := s.curriculums[id]; !ok {
+				log.Println(fmt.Sprintf("（。・＿・。）您输入的第%d个课程ID不正确，请重新输入~", key+1))
+				goto ReEnter
+			}
+
+			break
+		}
+
+		break
+	}
+
+
+	for _, curriculumId := range curriculumIds {
+		id, _ := strconv.ParseUint(curriculumId, 10, 64)
+		c := s.curriculums[id]
+
+		s.wg.Add(1)
+		go s.HandleCourseChapters(c.cuName, c.courseId, c.curriculumId)
+	}
+
+	s.wg.Wait()
+}
+
+// Login 登录
+func (s *Service) Login() gjson.Result {
+	data, err := s.xdSvc.BindStudentLoginByCardNumber(s.cfg.Authenticate.Account, s.cfg.Authenticate.Password)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	result := gjson.ParseBytes(data)
+	if !result.Get("SuccessResponse").Bool() {
+		log.Fatalln(result.Get("Message").String())
+	}
+
+	s.stuId = result.Get("Data.StuID").String()
+	s.stuDetailId = result.Get("Data.StuDetail_ID").String()
+
+	return result
+}
+
+// GetCurriculums 获取学生专业课程列表
+func (s *Service) GetCurriculums(stuDetailId, stuId string) gjson.Result {
+	data, err := s.xdSvc.GetStuSpecialtyCurriculumList(fmt.Sprintf("http://xtdx.web2.superchutou.com/service/eduSuper/Specialty/GetStuSpecialtyCurriculumList?StuDetail_ID=%s&IsStudyYear=1&StuID=%s", stuDetailId, stuId))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	result := gjson.ParseBytes(data)
+	if !result.Get("SuccessResponse").Bool() {
+		log.Fatalln(result.Get("Message").String())
+	}
+
+	return result
+}
+
+// GetCourseChapters 获取课程章节节点列表
+func (s *Service) GetCourseChapters(courseId, curriculumId uint64, stuId, stuDetailId string) gjson.Result {
+	data, err := s.xdSvc.GetCourseChaptersNodeList(fmt.Sprintf("http://xtdx.web2.superchutou.com/service/eduSuper/Question/GetCourse_ChaptersNodeList?Valid=1&Course_ID=%d&StuID=%s&Curriculum_ID=%d&Examination_ID=0&StuDetail_ID=%s", courseId, stuId, curriculumId, stuDetailId))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	result := gjson.ParseBytes(data)
+	if !result.Get("SuccessResponse").Bool() {
+		log.Fatalln(result.Get("Message").String())
+	}
+
+	return result
+}
+
+// HandleCourseChapters 处理课程章节
+func (s *Service) HandleCourseChapters(cuName string, courseId, curriculumId uint64) {
+	defer s.wg.Done()
+
+	arrays := s.GetCourseChapters(courseId, curriculumId, s.stuId, s.stuDetailId).Get("Data").Array()
+	for _, array := range arrays {
+		chapters := array.Get("ChildNodeList").Array()
+		for _, chapter := range chapters {
+			if chapter.Get("IsLook").Int() == 1 {
+				continue
+			}
+
+			log.Println(fmt.Sprintf("%s | %s | %s", cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String()))
+
+			// _, err := s.xdSvc.SaveCourseLook(chapter.Get("ID").Uint())
+			// if err != nil {
+			// 	log.Println(fmt.Sprintf("%s | %s | %s | %s", cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String(), err.Error()))
+			// 	continue
+			// }
+		}
+	}
+}

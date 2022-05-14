@@ -1,0 +1,12 @@
+# 身份验证
+authenticate:
+  account: "身份证号"
+  password: "你的密码"
+
+log:
+  # 业务日志
+  name: service
+  output:
+    - type: file
+      level: "info" # -1 debug, 0 info, 1 warn, 2 error, 3 dpanic, 4 panic, 5 fatal
+      path: /usr/local/superchutou/logs

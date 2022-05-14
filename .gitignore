@@ -1,0 +1,14 @@
+*.ini
+*.bak
+*.log
+*.pid
+*.yaml
+*.yml
+*.exe
+
+dist
+tmp
+
+# Editor directories and files
+.idea
+.vscode
