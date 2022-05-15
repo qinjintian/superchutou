@@ -30,4 +30,8 @@ func main() {
 	err = app.Container.Invoke(func(svc *service.Service) {
 		svc.Run()
 	})
+
+	if err != nil {
+		panic(err)
+	}
 }

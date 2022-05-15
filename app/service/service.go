@@ -218,6 +218,7 @@ func (s *Service) HandleCourseChapters(c *curriculum) {
 			for _, course := range courses {
 				if _, ok := notLookCourses[course.Get("ID").Uint()]; ok {
 					if course.Get("IsLook").Uint() == 1 {
+						isLookCount++
 						log.Println(fmt.Sprintf("课程 >> %d %s | %s | %s 已播放完毕，请在个人中心查看课程观看进度", course.Get("ID").Uint(), c.cuName, chapter.Get("Name").String(), course.Get("Name").String()))
 						continue
 					}
