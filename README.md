@@ -17,3 +17,7 @@
 
 使用说明二
 对于不想看代码实现过程的朋友可以直接下载 cmd.exe 可执行文件到本地电脑（windows）双击运行，根据终端提示操作即可
+
+#### 截图
+
+![image](https://github.com/qinjintian/superchutou/blob/main/运行截图.png?raw=true)
