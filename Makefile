@@ -9,10 +9,10 @@ build: clean
 	cp ./configs/config.yaml.dist dist/configs/config.yaml.dist
 	cp ./README.md dist/README.md
 
-	go build ${LDFLAGS} -o ./dist/bin/superchutou ./cmd/server/*.go
+	go build ${LDFLAGS} -o ./dist/bin/superchutou ./cmd/*.go
 
 run:
-	go run --race ./cmd/server/*.go -c ./configs/config.yaml
+	go run --race ./cmd/*.go -c ./configs/config.yaml
 
 clean:
 	rm -rf dist
