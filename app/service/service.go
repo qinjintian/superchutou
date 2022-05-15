@@ -23,11 +23,13 @@ type Service struct {
 	wg          sync.WaitGroup
 }
 
-// curriculum 课程参数信息
+// curriculum 课程信息
 type curriculum struct {
-	courseId     uint64
-	curriculumId uint64
-	cuName       string
+	courseId           uint64
+	curriculumId       uint64
+	cuName             string // 课程名
+	courseChapters     uint64 // 课程集数
+	courseReadChapters uint64 // 课程已看集数
 }
 
 func NewService(cfg *Config, xdSvc *core.XTDXService) (*Service, error) {
@@ -60,9 +62,11 @@ func (s *Service) Run() {
 		)
 
 		s.curriculums[arr.Get("Curriculum_ID").Uint()] = &curriculum{
-			courseId:     arr.Get("Course_ID").Uint(),
-			curriculumId: arr.Get("Curriculum_ID").Uint(),
-			cuName:       arr.Get("CuName").String(),
+			courseId:           arr.Get("Course_ID").Uint(),
+			curriculumId:       arr.Get("Curriculum_ID").Uint(),
+			cuName:             arr.Get("CuName").String(),
+			courseChapters:     arr.Get("CourseChapters").Uint(),
+			courseReadChapters: arr.Get("CourseReadChapters").Uint(),
 		}
 
 		// 跳过还未可以看的课程
@@ -111,16 +115,18 @@ ReEnter:
 		break
 	}
 
-
 	for _, curriculumId := range curriculumIds {
 		id, _ := strconv.ParseUint(curriculumId, 10, 64)
 		c := s.curriculums[id]
 
 		s.wg.Add(1)
-		go s.HandleCourseChapters(c.cuName, c.courseId, c.curriculumId)
+
+		go s.HandleCourseChapters(c)
 	}
 
 	s.wg.Wait()
+
+	log.Println("所选课程已经全部播放完毕，请确认进度(*^__^*)")
 }
 
 // Login 登录
@@ -172,24 +178,53 @@ func (s *Service) GetCourseChapters(courseId, curriculumId uint64, stuId, stuDet
 }
 
 // HandleCourseChapters 处理课程章节
-func (s *Service) HandleCourseChapters(cuName string, courseId, curriculumId uint64) {
+func (s *Service) HandleCourseChapters(c *curriculum) {
 	defer s.wg.Done()
 
-	arrays := s.GetCourseChapters(courseId, curriculumId, s.stuId, s.stuDetailId).Get("Data").Array()
-	for _, array := range arrays {
-		chapters := array.Get("ChildNodeList").Array()
-		for _, chapter := range chapters {
-			if chapter.Get("IsLook").Int() == 1 {
-				continue
-			}
+	if c.courseReadChapters == c.courseChapters {
+		log.Println(fmt.Sprintf("%s 观看进度已达100%%，已跳过该课程", c.cuName))
+		return
+	}
 
-			log.Println(fmt.Sprintf("%s | %s | %s", cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String()))
+	cumulate := 1
 
-			// _, err := s.xdSvc.SaveCourseLook(chapter.Get("ID").Uint())
-			// if err != nil {
-			// 	log.Println(fmt.Sprintf("%s | %s | %s | %s", cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String(), err.Error()))
-			// 	continue
-			// }
+	for {
+		if cumulate > 60 {
+			break
 		}
+
+		var (
+			isLookCount uint64 = 0
+			arrays             = s.GetCourseChapters(c.courseId, c.curriculumId, s.stuId, s.stuDetailId).Get("Data").Array()
+		)
+
+		for _, array := range arrays {
+			chapters := array.Get("ChildNodeList").Array()
+			for _, chapter := range chapters {
+				if chapter.Get("IsLook").Uint() == 1 {
+					isLookCount++
+					continue
+				}
+
+				if cumulate == 1 {
+					log.Println(fmt.Sprintf("正在以守护进程方式播放 %s > %s > %s 请耐心等待", c.cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String()))
+				}
+
+				_, err := s.xdSvc.SaveCourseLook(chapter.Get("ID").Uint())
+				if err != nil {
+					log.Println(fmt.Sprintf("%s | %s | %s | %s", c.cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String(), err.Error()))
+					continue
+				}
+			}
+		}
+
+		if isLookCount == c.courseChapters {
+			log.Println(fmt.Sprintf("课程 %s 已播放完毕，请查看进度", c.cuName))
+			break
+		}
+
+		time.Sleep(time.Second * 60)
+
+		cumulate++
 	}
 }

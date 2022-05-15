@@ -12,3 +12,4 @@ tmp
 # Editor directories and files
 .idea
 .vscode
+/configs/config.yaml
