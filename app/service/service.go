@@ -186,33 +186,55 @@ func (s *Service) HandleCourseChapters(c *curriculum) {
 		return
 	}
 
-	cumulate := 1
+	var (
+		loops          = 1                        // 轮询更新进度次数
+		notLookCourses = make(map[uint64]bool, 0) // 未观看的课程
+	)
 
 	for {
-		if cumulate > 60 {
+		if loops > 60 {
 			break
 		}
 
 		var (
 			isLookCount uint64 = 0
-			arrays             = s.GetCourseChapters(c.courseId, c.curriculumId, s.stuId, s.stuDetailId).Get("Data").Array()
+			chapters           = s.GetCourseChapters(c.courseId, c.curriculumId, s.stuId, s.stuDetailId).Get("Data").Array()
 		)
 
-		for _, array := range arrays {
-			chapters := array.Get("ChildNodeList").Array()
+		if loops == 1 {
 			for _, chapter := range chapters {
-				if chapter.Get("IsLook").Uint() == 1 {
+				courses := chapter.Get("ChildNodeList").Array()
+				for _, course := range courses {
+					// 未读的课程
+					if course.Get("IsLook").Uint() == 0 {
+						notLookCourses[course.Get("ID").Uint()] = true
+					}
+				}
+			}
+		}
+
+		for _, chapter := range chapters {
+			courses := chapter.Get("ChildNodeList").Array()
+			for _, course := range courses {
+				if _, ok := notLookCourses[course.Get("ID").Uint()]; ok {
+					if course.Get("IsLook").Uint() == 1 {
+						log.Println(fmt.Sprintf("课程 >> %d %s | %s | %s 已播放完毕，请在个人中心查看课程观看进度", course.Get("ID").Uint(), c.cuName, chapter.Get("Name").String(), course.Get("Name").String()))
+						continue
+					}
+				}
+
+				if course.Get("IsLook").Uint() == 1 {
 					isLookCount++
 					continue
 				}
 
-				if cumulate == 1 {
-					log.Println(fmt.Sprintf("正在以守护进程方式播放 %s > %s > %s 请耐心等待", c.cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String()))
+				if loops == 1 {
+					log.Println(fmt.Sprintf("正在以守护进程方式播放 %s > %s > %s，请勿关闭终端窗口", c.cuName, chapter.Get("Name").String(), course.Get("Name").String()))
 				}
 
-				_, err := s.xdSvc.SaveCourseLook(chapter.Get("ID").Uint())
+				_, err := s.xdSvc.SaveCourseLook(course.Get("ID").Uint())
 				if err != nil {
-					log.Println(fmt.Sprintf("%s | %s | %s | %s", c.cuName, array.Get("Name").String(), chapter.Get("CourseWare_Name").String(), err.Error()))
+					log.Println(fmt.Sprintf("%s | %s | %s | %s", c.cuName, chapter.Get("Name").String(), course.Get("Name").String(), err.Error()))
 					continue
 				}
 			}
@@ -225,6 +247,6 @@ func (s *Service) HandleCourseChapters(c *curriculum) {
 
 		time.Sleep(time.Second * 60)
 
-		cumulate++
+		loops++
 	}
 }

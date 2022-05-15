@@ -35,7 +35,7 @@ func bootstrap(app *Application) error {
 	})
 
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil

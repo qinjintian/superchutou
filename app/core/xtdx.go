@@ -94,14 +94,14 @@ func (s *XTDXService) GetCourseChaptersNodeList(url string) ([]byte, error) {
 }
 
 // SaveCourseLook 更新视频进度
-func (s *XTDXService) SaveCourseLook(courseChaptersId uint64) ([]byte, error) {
+func (s *XTDXService) SaveCourseLook(courseId uint64) ([]byte, error) {
 	headers := make(map[string]string, 0)
 	headers["Content-Type"] = "application/json"
 	headers["User-Agent"] = UA
 	headers["Cookie"] = s.cookie.String()
 
 	params := make(map[string]interface{}, 0)
-	params["CourseChapters_ID"] = courseChaptersId
+	params["CourseChapters_ID"] = courseId
 	params["IP"] = s.ip
 	params["LookTime"] = 60
 	params["LookType"] = 0
