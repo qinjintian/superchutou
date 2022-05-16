@@ -71,13 +71,13 @@ func (s *Service) Run() {
 
 		// 跳过还未可以看的课程
 		if courseChapters == 0 {
-			log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 进度： 已观看数: 0 总数: 0 进度: 0%% | 状态： 未开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String()))
+			log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 已观看数: 0 总数: 0 进度: 0%% | 状态： 未开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String()))
 			continue
 		}
 
 		rate := utils.Decimal(float64(courseReadChapters) / float64(courseChapters) * 100)
 
-		log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 进度： 已观看数: %d 总数: %d 进度: %v%% | 状态： 已开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String(), courseReadChapters, courseChapters, rate))
+		log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 已观看数: %d 总数: %d 进度: %v%% | 状态： 已开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String(), courseReadChapters, courseChapters, rate))
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
