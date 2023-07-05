@@ -231,6 +231,7 @@ func (s *Service) HandleCourseChapters(c *curriculum) {
 				}
 
 				_, err := s.xdSvc.SaveCourseLook(course.Get("ID").Uint())
+				log.Println(fmt.Sprintf("更新视频进度成功"))
 				if err != nil {
 					log.Println(fmt.Sprintf("%s | %s | %s | %s", c.cuName, chapter.Get("Name").String(), course.Get("Name").String(), err.Error()))
 					continue
