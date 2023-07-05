@@ -9,7 +9,7 @@ import (
 
 // GetExtranetIP 获取本机外网IP
 func GetExtranetIP() (string, error) {
-	resp, err := http.Get("https://ip.dhcp.cn/?ip") // 获取外网 IP
+	resp, err := http.Get("http://ifconfig.me") // 获取外网 IP
 	if err != nil {
 		return "", err
 	}

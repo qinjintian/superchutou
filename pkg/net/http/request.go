@@ -28,7 +28,6 @@ func Request(method string, url string, body io.Reader, headers map[string]strin
 	if err != nil {
 		return req, nil, err
 	}
-
 	if headers != nil {
 		for key, val := range headers {
 			req.Header.Add(key, val)
@@ -55,7 +54,6 @@ func Request(method string, url string, body io.Reader, headers map[string]strin
 	if err != nil {
 		return req, nil, err
 	}
-
 	resp, err = client.Do(req)
 	if err != nil {
 		return req, nil, err

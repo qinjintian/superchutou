@@ -1,7 +1,8 @@
 # 身份验证
 authenticate:
-  account: "身份证号"
-  password: "你的密码"
+  account: "123321"
+  password: "231213"
+  cookie: "sessionId=1; LoginType=1; UserKey=1"
 
 log:
   # 业务日志

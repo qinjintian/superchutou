@@ -10,8 +10,9 @@ import (
 )
 
 type XTDXService struct {
-	ip     string
-	cookie *pkgHttp.Cookie
+	ip        string
+	cookie    *pkgHttp.Cookie
+	cookieStr string
 }
 
 const (
@@ -47,7 +48,7 @@ func (s *XTDXService) BindStudentLoginByCardNumber(card, pwd string) ([]byte, er
 
 	b, _ := json.Marshal(params)
 
-	_, resp, err := http.Request("POST", "http://xtdx.web2.superchutou.com/service/eduSuper/Student/BindStudentLoginByCardNumber", strings.NewReader(string(b)), headers)
+	_, resp, err := http.Request("POST", "https://xtdx.web2.superchutou.com/service/eduSuper/Student/BindStudentLoginByCardNumber", strings.NewReader(string(b)), headers)
 	if err != nil {
 		return nil, err
 	}
@@ -59,12 +60,31 @@ func (s *XTDXService) BindStudentLoginByCardNumber(card, pwd string) ([]byte, er
 	return ioutil.ReadAll(resp.Body)
 }
 
+// GetStudentDetailRegisterSet 获取学生登录资料
+func (s *XTDXService) GetStudentDetailRegisterSet(cookie string) ([]byte, error) {
+	headers := make(map[string]string, 0)
+	//headers["Content-Type"] = "application/json"
+	headers["User-Agent"] = UA
+	headers["Cookie"] = cookie
+	s.cookieStr = cookie
+	params := make(map[string]interface{}, 0)
+	b, _ := json.Marshal(params)
+	_, resp, err := http.Request("GET", "https://xtdx.web2.superchutou.com/service/eduSuper/StudentinfoDetail/GetStudentDetailRegisterSet", strings.NewReader(string(b)), headers)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
+}
+
 // GetStuSpecialtyCurriculumList 获取学生专业课程列表
 func (s *XTDXService) GetStuSpecialtyCurriculumList(url string) ([]byte, error) {
 	headers := make(map[string]string, 0)
 	headers["Content-Type"] = "application/json"
 	headers["User-Agent"] = UA
-	headers["Cookie"] = s.cookie.String()
+	headers["Cookie"] = s.cookieStr
 
 	_, resp, err := http.Request("GET", url, nil, headers)
 	if err != nil {
@@ -81,7 +101,7 @@ func (s *XTDXService) GetCourseChaptersNodeList(url string) ([]byte, error) {
 	headers := make(map[string]string, 0)
 	headers["Content-Type"] = "application/json"
 	headers["User-Agent"] = UA
-	headers["Cookie"] = s.cookie.String()
+	headers["Cookie"] = s.cookieStr
 
 	_, resp, err := http.Request("GET", url, nil, headers)
 	if err != nil {
@@ -98,7 +118,7 @@ func (s *XTDXService) SaveCourseLook(courseId uint64) ([]byte, error) {
 	headers := make(map[string]string, 0)
 	headers["Content-Type"] = "application/json"
 	headers["User-Agent"] = UA
-	headers["Cookie"] = s.cookie.String()
+	headers["Cookie"] = s.cookieStr
 
 	params := make(map[string]interface{}, 0)
 	params["CourseChapters_ID"] = courseId
@@ -108,7 +128,7 @@ func (s *XTDXService) SaveCourseLook(courseId uint64) ([]byte, error) {
 
 	b, _ := json.Marshal(params)
 
-	_, resp, err := http.Request("POST", "http://xtdx.web2.superchutou.com/service/datastore/WebCourse/SaveCourse_Look", strings.NewReader(string(b)), headers)
+	_, resp, err := http.Request("POST", "https://xtdx.web2.superchutou.com/service/datastore/WebCourse/SaveCourse_Look", strings.NewReader(string(b)), headers)
 	if err != nil {
 		return nil, err
 	}

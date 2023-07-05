@@ -48,8 +48,7 @@ func (s *Service) Run() {
 	time.Sleep(2 * time.Second)
 
 	// 获取学生专业课程列表
-	result = s.GetCurriculums(result.Get("Data.StuDetail_ID").String(), result.Get("Data.StuID").String())
-
+	result = s.GetCurriculums(result.Get("Data.0.StuDetail_ID").String(), result.Get("Data.0.StuID").String())
 	var (
 		arrs  = result.Get("Data.list").Array()
 		count = result.Get("TotalCount").Uint()
@@ -131,25 +130,23 @@ ReEnter:
 
 // Login 登录
 func (s *Service) Login() gjson.Result {
-	data, err := s.xdSvc.BindStudentLoginByCardNumber(s.cfg.Authenticate.Account, s.cfg.Authenticate.Password)
+	data, err := s.xdSvc.GetStudentDetailRegisterSet(s.cfg.Authenticate.Cookie)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	result := gjson.ParseBytes(data)
 	if !result.Get("SuccessResponse").Bool() {
 		log.Fatalln(result.Get("Message").String())
 	}
-
-	s.stuId = result.Get("Data.StuID").String()
-	s.stuDetailId = result.Get("Data.StuDetail_ID").String()
+	s.stuId = result.Get("Data.0.StuID").String()
+	s.stuDetailId = result.Get("Data.0.StuDetail_ID").String()
 
 	return result
 }
 
 // GetCurriculums 获取学生专业课程列表
 func (s *Service) GetCurriculums(stuDetailId, stuId string) gjson.Result {
-	data, err := s.xdSvc.GetStuSpecialtyCurriculumList(fmt.Sprintf("http://xtdx.web2.superchutou.com/service/eduSuper/Specialty/GetStuSpecialtyCurriculumList?StuDetail_ID=%s&IsStudyYear=1&StuID=%s", stuDetailId, stuId))
+	data, err := s.xdSvc.GetStuSpecialtyCurriculumList(fmt.Sprintf("https://xtdx.web2.superchutou.com/service/eduSuper/Specialty/GetStuSpecialtyCurriculumList?StuDetail_ID=%s&IsStudyYear=1&StuID=%s", stuDetailId, stuId))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -164,7 +161,7 @@ func (s *Service) GetCurriculums(stuDetailId, stuId string) gjson.Result {
 
 // GetCourseChapters 获取课程章节节点列表
 func (s *Service) GetCourseChapters(courseId, curriculumId uint64, stuId, stuDetailId string) gjson.Result {
-	data, err := s.xdSvc.GetCourseChaptersNodeList(fmt.Sprintf("http://xtdx.web2.superchutou.com/service/eduSuper/Question/GetCourse_ChaptersNodeList?Valid=1&Course_ID=%d&StuID=%s&Curriculum_ID=%d&Examination_ID=0&StuDetail_ID=%s", courseId, stuId, curriculumId, stuDetailId))
+	data, err := s.xdSvc.GetCourseChaptersNodeList(fmt.Sprintf("https://xtdx.web2.superchutou.com/service/eduSuper/Question/GetCourse_ChaptersNodeList?Valid=1&Course_ID=%d&StuID=%s&Curriculum_ID=%d&Examination_ID=0&StuDetail_ID=%s", courseId, stuId, curriculumId, stuDetailId))
 	if err != nil {
 		log.Fatalln(err)
 	}

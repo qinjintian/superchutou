@@ -9,6 +9,7 @@ type Config struct {
 type Authenticate struct {
 	Account  string `yaml:"account"`
 	Password string `yaml:"password"`
+	Cookie   string `yaml:"cookie"`
 }
 
 type Log struct {
