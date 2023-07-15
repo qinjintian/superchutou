@@ -1,7 +1,6 @@
 # 身份验证
 authenticate:
-  account: "身份证号"
-  password: "你的密码"
+  cookie: ""
 
 log:
   # 业务日志

@@ -29,6 +29,53 @@ func NewXTDXService() (*XTDXService, error) {
 	}, nil
 }
 
+// SendPhoneCodeBYLogin 发送登录验证码
+func (s *XTDXService) SendPhoneCodeBYLogin(phone string) ([]byte, error) {
+	headers := make(map[string]string, 0)
+	headers["Content-Type"] = "application/json; charset=utf-8"
+	headers["User-Agent"] = UA
+
+	params := make(map[string]interface{}, 0)
+	params["Phone"] = phone
+
+	b, _ := json.Marshal(params)
+	_, resp, err := http.Request("POST", "https://xtdx.web2.superchutou.com/service/eduSuper/Student/SendPhoneCodeBYLogin", strings.NewReader(string(b)), headers)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cookie = resp.Cookies()[0]
+
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
+}
+
+// BindStudentLoginByPhone 通过手机号+验证码方式登录
+func (s *XTDXService) BindStudentLoginByPhone(phone string, code string) ([]byte, error) {
+	headers := make(map[string]string, 0)
+	headers["Content-Type"] = "application/json; charset=utf-8"
+	headers["User-Agent"] = UA
+
+	params := make(map[string]interface{}, 0)
+	params["Phone"] = phone
+	params["PhoneCode"] = code
+	params["LoginType"] = 2
+	params["LoginSource"] = 1
+
+	b, _ := json.Marshal(params)
+	_, resp, err := http.Request("POST", "https://xtdx.web2.superchutou.com/service/eduSuper/Student/BindStudentLoginByPhone", strings.NewReader(string(b)), headers)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cookie = resp.Cookies()[0]
+
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
+}
+
 // BindStudentLoginByCardNumber 通过卡号绑定学生登录
 func (s *XTDXService) BindStudentLoginByCardNumber(card, pwd string) ([]byte, error) {
 	headers := make(map[string]string, 0)
@@ -47,7 +94,7 @@ func (s *XTDXService) BindStudentLoginByCardNumber(card, pwd string) ([]byte, er
 
 	b, _ := json.Marshal(params)
 
-	_, resp, err := http.Request("POST", "http://xtdx.web2.superchutou.com/service/eduSuper/Student/BindStudentLoginByCardNumber", strings.NewReader(string(b)), headers)
+	_, resp, err := http.Request("POST", "https://xtdx.web2.superchutou.com/service/eduSuper/Student/BindStudentLoginByCardNumber", strings.NewReader(string(b)), headers)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +155,7 @@ func (s *XTDXService) SaveCourseLook(courseId uint64) ([]byte, error) {
 
 	b, _ := json.Marshal(params)
 
-	_, resp, err := http.Request("POST", "http://xtdx.web2.superchutou.com/service/datastore/WebCourse/SaveCourse_Look", strings.NewReader(string(b)), headers)
+	_, resp, err := http.Request("POST", "https://xtdx.web2.superchutou.com/service/datastore/WebCourse/SaveCourse_Look", strings.NewReader(string(b)), headers)
 	if err != nil {
 		return nil, err
 	}
