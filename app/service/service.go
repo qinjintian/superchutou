@@ -41,7 +41,14 @@ func NewService(cfg *Config, xdSvc *core.XTDXService) (*Service, error) {
 }
 
 func (s *Service) Run() {
-	result := s.Login() // 登录
+	fmt.Printf("【湘潭大学】正在使用手机号+验证码登录方式\n")
+
+	phone, isSent := s.SendPhoneCodeBYLogin()
+	if isSent {
+		fmt.Printf("验证码已发送，请查收\n")
+	}
+
+	result := s.Login(phone)
 
 	log.Println(fmt.Sprintf("登录成功，^_^欢迎%s，开始获取专业课程列表~~~~", result.Get("Data.Name")))
 
@@ -71,13 +78,13 @@ func (s *Service) Run() {
 
 		// 跳过还未可以看的课程
 		if courseChapters == 0 {
-			log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 进度： 已观看数: 0 总数: 0 进度: 0%% | 状态： 未开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String()))
+			log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 已观看数: 0 总数: 0 进度: 0%% | 状态： 未开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String()))
 			continue
 		}
 
 		rate := utils.Decimal(float64(courseReadChapters) / float64(courseChapters) * 100)
 
-		log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 进度： 已观看数: %d 总数: %d 进度: %v%% | 状态： 已开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String(), courseReadChapters, courseChapters, rate))
+		log.Println(fmt.Sprintf("[%d/%d] 学期： 第%d学期 | 课程ID： %d | 课程名称： %s | 已观看数: %d 总数: %d 进度: %v%% | 状态： 已开放", key+1, count, arr.Get("StudyYear").Uint(), arr.Get("Curriculum_ID").Uint(), arr.Get("CuName").String(), courseReadChapters, courseChapters, rate))
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -129,9 +136,22 @@ ReEnter:
 	log.Println("所选课程已经全部播放完毕，请确认进度(*^__^*)")
 }
 
-// Login 登录
-func (s *Service) Login() gjson.Result {
-	data, err := s.xdSvc.BindStudentLoginByCardNumber(s.cfg.Authenticate.Account, s.cfg.Authenticate.Password)
+// SendPhoneCodeBYLogin 发送验证码
+func (s *Service) SendPhoneCodeBYLogin() (string, bool) {
+	phone := ""
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Printf("请输入手机号并按回车键获取短信验证码：")
+		scanner.Scan()
+		phone = scanner.Text()
+		if phone == "" {
+			fmt.Println("手机号不能为空，请重新输入~")
+			continue
+		}
+		break
+	}
+
+	data, err := s.xdSvc.SendPhoneCodeBYLogin(phone)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -141,15 +161,40 @@ func (s *Service) Login() gjson.Result {
 		log.Fatalln(result.Get("Message").String())
 	}
 
-	s.stuId = result.Get("Data.StuID").String()
-	s.stuDetailId = result.Get("Data.StuDetail_ID").String()
+	return phone, true
+}
+
+// Login 登录
+func (s *Service) Login(phone string) gjson.Result {
+	code := ""
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Printf("请输入验证码并按回车键：")
+		scanner.Scan()
+		code = scanner.Text()
+		if code == "" {
+			fmt.Println("验证码不能为空，请重新输入~")
+			continue
+		}
+		break
+	}
+
+	data, err := s.xdSvc.BindStudentLoginByPhone(phone, code)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	result := gjson.ParseBytes(data)
+	if !result.Get("SuccessResponse").Bool() {
+		log.Fatalln(result.Get("Message").String())
+	}
 
 	return result
 }
 
 // GetCurriculums 获取学生专业课程列表
 func (s *Service) GetCurriculums(stuDetailId, stuId string) gjson.Result {
-	data, err := s.xdSvc.GetStuSpecialtyCurriculumList(fmt.Sprintf("http://xtdx.web2.superchutou.com/service/eduSuper/Specialty/GetStuSpecialtyCurriculumList?StuDetail_ID=%s&IsStudyYear=1&StuID=%s", stuDetailId, stuId))
+	data, err := s.xdSvc.GetStuSpecialtyCurriculumList(fmt.Sprintf("https://xtdx.web2.superchutou.com/service/eduSuper/Specialty/GetStuSpecialtyCurriculumList?StuDetail_ID=%s&IsStudyYear=1&StuID=%s", stuDetailId, stuId))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -164,7 +209,7 @@ func (s *Service) GetCurriculums(stuDetailId, stuId string) gjson.Result {
 
 // GetCourseChapters 获取课程章节节点列表
 func (s *Service) GetCourseChapters(courseId, curriculumId uint64, stuId, stuDetailId string) gjson.Result {
-	data, err := s.xdSvc.GetCourseChaptersNodeList(fmt.Sprintf("http://xtdx.web2.superchutou.com/service/eduSuper/Question/GetCourse_ChaptersNodeList?Valid=1&Course_ID=%d&StuID=%s&Curriculum_ID=%d&Examination_ID=0&StuDetail_ID=%s", courseId, stuId, curriculumId, stuDetailId))
+	data, err := s.xdSvc.GetCourseChaptersNodeList(fmt.Sprintf("https://xtdx.web2.superchutou.com/service/eduSuper/Question/GetCourse_ChaptersNodeList?Valid=1&Course_ID=%d&StuID=%s&Curriculum_ID=%d&Examination_ID=0&StuDetail_ID=%s", courseId, stuId, curriculumId, stuDetailId))
 	if err != nil {
 		log.Fatalln(err)
 	}
